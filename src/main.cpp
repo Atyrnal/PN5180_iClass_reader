@@ -93,16 +93,16 @@ void loop() {
     digitalWrite(LED_PIN, HIGH);
     uint32_t psID;
     if (genCardPseudoID(&psID)) {
-      Serial.print("Card psID: ");
+      Serial.print("200; iClass card found; ");
       Serial.println(psID);
     } else {
-      Serial.println("Failed to generate card id");
+      Serial.println("500; iClass card found; Failed to generate psuedo identifier hash");
     }
     
     
   } else {
     digitalWrite(LED_PIN, LOW);
-    Serial.println("No card detected.");
+    //Serial.println("No card detected.");
   }
 
   delay(500);
