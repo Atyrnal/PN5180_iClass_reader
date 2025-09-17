@@ -2,15 +2,15 @@
 //ESP32 Stuff
 #include <Arduino.h>
 #include <WiFi.h>
-#include "PN5180.h"
+#include "PN5180iClass.h"
 
 
 //Code stuff
 #include <string>
 #include "secrets.hpp"
+#include <bitset>
 
 //Specify pin numbers
-PN5180 pn5180(/* NSS=*/ 5, /* BUSY=*/ 17, /* RST=*/ 16); // ESP32
 #define LED_PIN 2
 
 #ifndef WIFI_SSID
@@ -27,7 +27,12 @@ PN5180 pn5180(/* NSS=*/ 5, /* BUSY=*/ 17, /* RST=*/ 16); // ESP32
 
 using namespace std;
 
+// Pins
+const uint8_t PN5180_NSS  = 5;   // CS / NSS
+const uint8_t PN5180_BUSY = 17;  // BUSY
+const uint8_t PN5180_RST  = 16;  // RESET
 
+PN5180iClass reader(PN5180_NSS, PN5180_BUSY, PN5180_RST);
 
 void setup() { 
   //Open serial connection
@@ -51,34 +56,28 @@ void setup() {
   Serial.println(WiFi.localIP());
   digitalWrite(LED_PIN, LOW);
 
-  //Initalize RFID reader
-  Serial.println("Initializing PN5180 RFID reader");  
-  pn5180.begin();
-  delay(100);
-  digitalWrite(LED_PIN, HIGH);
+  reader.begin();
+  delay(50);
+
+  if (!reader.setupRF()) {
+    while (1) { delay(500); }
+  }
+  Serial.println("Reader Ready");
 }
 
 void loop() {
-  // Create an 8-byte integer array to store UID of any detected tag
-  uint8_t uid[8];
-  
-  // Call the getInventory() method
-  if (pn5180.getInventory(uid)) {
-	  
-	// If tag was found, print its ID to the serial monitor
-    Serial.print("Tag UID: ");
-	// Format each byte as HEX, padded with leading zeroes if required
-    for (int i = 7; i >= 0; i--) {
-      if (uid[i] < 0x10) Serial.print("0");
-      Serial.print(uid[i], HEX);
-    }
-    Serial.println();
-  } 
-  // No tag in range
-  else {
-    Serial.println("No tag detected.");
+  iClassErrorCode rc = reader.ActivateAll();
+
+  if(rc == ICLASS_EC_OK) {
+    digitalWrite(LED_PIN, HIGH);
+    Serial.println("iClass card detected in the field!");
+  } else {
+    digitalWrite(LED_PIN, LOW);
+    Serial.println("No card detected.");
   }
+
   delay(500);
 }
+
 
 
