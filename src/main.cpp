@@ -8,7 +8,7 @@
 //Code stuff
 #include <string>
 #include "secrets.hpp"
-#include <bitset>
+#include <ctime>
 
 //Specify pin numbers
 #define LED_PIN 2
@@ -33,6 +33,11 @@ const uint8_t PN5180_BUSY = 17;  // BUSY
 const uint8_t PN5180_RST  = 16;  // RESET
 
 PN5180iClass reader(PN5180_NSS, PN5180_BUSY, PN5180_RST);
+
+
+uint32_t last_scan = 0x0;
+time_t last_scan_time;
+uint32_t last3[3] = { 0x0, 0x0, 0x0 };
 
 bool genCardPseudoID(uint32_t *pseudoID) {
     iClassErrorCode rc;
@@ -59,10 +64,14 @@ string format(const string& format, Args ... args) {
   return string( buf.get(), buf.get() + size - 1 );
 }
 
+void on_scan(uint32_t id) {
+  Serial.println(format("20B; %010lu; ", id).c_str());
+}
+
 void setup() { 
   //Open serial connection
   Serial.begin(115200);
-
+  Serial.println("10A; Serial opened");
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
 
@@ -70,21 +79,18 @@ void setup() {
   char* ssid = WIFI_SSID;
   char* password = WIFI_PASSWORD;
 
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
+  Serial.println(format("30A; connecting to %s", ssid).c_str());
   WiFi.begin(ssid, password);
   double timeout = 10.0;
   while (WiFi.status() != WL_CONNECTED && timeout > 0) {
     delay(500);
     timeout -=.5;
-    Serial.print(".");
   }
   if (timeout > 0) {
-    Serial.print("Connected\nIP Address: ");
-    Serial.println(WiFi.localIP());
+    Serial.println(format("30B; connected; %s", WiFi.localIP().toString()).c_str());
   } else {
-    Serial.println("Unable to connect to WiFi: connection timed out.");
-    exit(1);
+    Serial.println("30C; no connection");
+    //exit(1);
   }
   digitalWrite(LED_PIN, LOW);
 
@@ -93,10 +99,16 @@ void setup() {
   delay(50);
 
   if (!reader.setupRF()) {
-    while (1) { delay(500); }
+    Serial.println("10C; RFID Failed");
+    exit(1);
   }
-  Serial.println("Reader Ready");
+  last_scan_time = (time_t) 0;
+  for (int i = 0; i < 3; i++) {
+    Serial.println("10B; RFID Ready");
+  }
 }
+
+
 
 void loop() {
   iClassErrorCode rc = reader.ActivateAll();
@@ -105,10 +117,24 @@ void loop() {
     digitalWrite(LED_PIN, HIGH);
     uint32_t psID;
     if (genCardPseudoID(&psID)) {
-      Serial.println(format("200; iClass card found; %08x", psID).c_str());
+      Serial.println(format("20A; iClass card found; %08x", psID).c_str());
+      bool threematch = true;
+      for (int i = 2; i > 0; i--) {
+        last3[i] = last3[i-1];
+        if (last3[i] != psID) threematch = false;
+      }
+      last3[0] = psID;
+      time_t now;
+      time(&now);
+      if (threematch && difftime(now, last_scan_time) > 3.0 && (last_scan != psID || difftime(now, last_scan_time) > 15.0)) {
+        last_scan = psID;
+        time(&last_scan_time);
+        on_scan(psID); 
+      }
     } else {
-      Serial.println("500; iClass card found; Failed to generate psuedo identifier hash");
+      Serial.println("20C; iClass card found; Failed to generate psuedo identifier hash");
     }
+
     
     
   } else {
@@ -116,7 +142,7 @@ void loop() {
     //Serial.println("No card detected.");
   }
 
-  delay(150);
+  delay(50);
 }
 
 
