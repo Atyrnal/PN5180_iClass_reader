@@ -49,6 +49,16 @@ bool genCardPseudoID(uint32_t *pseudoID) {
     return true;
 }
 
+template<typename ... Args>
+string format(const string& format, Args ... args) {
+  int size_s = snprintf( nullptr, 0, format.c_str(), args ... ) + 1;
+  if( size_s <= 0 ) { throw runtime_error( "Error during formatting." ); }
+  auto size = static_cast<size_t>( size_s );
+  unique_ptr<char[]> buf( new char[ size ] );
+  snprintf( buf.get(), size, format.c_str(), args ... );
+  return string( buf.get(), buf.get() + size - 1 );
+}
+
 void setup() { 
   //Open serial connection
   Serial.begin(115200);
@@ -74,9 +84,11 @@ void setup() {
     Serial.println(WiFi.localIP());
   } else {
     Serial.println("Unable to connect to WiFi: connection timed out.");
+    exit(1);
   }
   digitalWrite(LED_PIN, LOW);
 
+  //RFID Reader
   reader.begin();
   delay(50);
 
@@ -93,8 +105,7 @@ void loop() {
     digitalWrite(LED_PIN, HIGH);
     uint32_t psID;
     if (genCardPseudoID(&psID)) {
-      Serial.print("200; iClass card found; ");
-      Serial.println(psID);
+      Serial.println(format("200; iClass card found; %08x", psID).c_str());
     } else {
       Serial.println("500; iClass card found; Failed to generate psuedo identifier hash");
     }
@@ -105,7 +116,7 @@ void loop() {
     //Serial.println("No card detected.");
   }
 
-  delay(500);
+  delay(150);
 }
 
 
