@@ -1,34 +1,19 @@
 
 //ESP32 Stuff
 #include <Arduino.h>
-#include <WiFi.h>
 #include "PN5180iClass.h"
 
-
-//Code stuff
 #include <string>
-#include "secrets.hpp"
-#include <bitset>
+#include <memory>
+#include <stdexcept>
 
 //Specify pin numbers
 #define LED_PIN 2
 
-#ifndef WIFI_SSID
-#define WIFI_SSID "wifi_ssid"
-#endif
-
-#ifndef WIFI_PASSWORD
-#define WIFI_PASSWORD "wifi_password"
-#endif
-
-#ifndef WIFI_SECURITY
-#define WIFI_SECURITY "WPA2"
-#endif
-
 using namespace std;
 
 // Pins
-const uint8_t PN5180_NSS  = 5;   // CS / NSS
+const uint8_t PN5180_NSS  = 5;   //  NSS
 const uint8_t PN5180_BUSY = 17;  // BUSY
 const uint8_t PN5180_RST  = 16;  // RESET
 
@@ -49,41 +34,29 @@ bool genCardPseudoID(uint32_t *pseudoID) {
     return true;
 }
 
+template<typename ... Args>
+string format(const string& format, Args ... args) {
+  int size_s = snprintf( nullptr, 0, format.c_str(), args ... ) + 1;
+  if( size_s <= 0 ) { throw runtime_error( "Error during formatting." ); }
+  auto size = static_cast<size_t>( size_s );
+  unique_ptr<char[]> buf( new char[ size ] );
+  snprintf( buf.get(), size, format.c_str(), args ... );
+  return string( buf.get(), buf.get() + size - 1 );
+}
+
 void setup() { 
   //Open serial connection
   Serial.begin(115200);
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
-
-  //WiFi connections
-  char* ssid = WIFI_SSID;
-  char* password = WIFI_PASSWORD;
-
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
-  double timeout = 10.0;
-  while (WiFi.status() != WL_CONNECTED && timeout > 0) {
-    delay(500);
-    timeout -=.5;
-    Serial.print(".");
-  }
-  if (timeout > 0) {
-    Serial.print("Connected\nIP Address: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("Unable to connect to WiFi: connection timed out.");
-  }
-  digitalWrite(LED_PIN, LOW);
-
   reader.begin();
   delay(50);
-
   if (!reader.setupRF()) {
-    while (1) { delay(500); }
+    //Failed to initialize RF
+    exit(1);
   }
-  Serial.println("Reader Ready");
+   digitalWrite(LED_PIN, LOW);
 }
 
 void loop() {
@@ -93,8 +66,7 @@ void loop() {
     digitalWrite(LED_PIN, HIGH);
     uint32_t psID;
     if (genCardPseudoID(&psID)) {
-      Serial.print("200; iClass card found; ");
-      Serial.println(psID);
+      Serial.println(format("200; iClass card found; %08x", psID).c_str());
     } else {
       Serial.println("500; iClass card found; Failed to generate psuedo identifier hash");
     }
@@ -105,8 +77,7 @@ void loop() {
     //Serial.println("No card detected.");
   }
 
-  delay(500);
+  delay(150);
 }
-
 
 
