@@ -34,6 +34,21 @@ const uint8_t PN5180_RST  = 16;  // RESET
 
 PN5180iClass reader(PN5180_NSS, PN5180_BUSY, PN5180_RST);
 
+bool genCardPseudoID(uint32_t *pseudoID) {
+    iClassErrorCode rc;
+
+    uint8_t raw[8]; //raw response
+    rc = reader.Identify(raw);
+    if (rc != ICLASS_EC_OK) return false;
+
+    uint32_t hash = 0;
+    for (int i = 0; i < 8; i++) {
+        hash = hash * 31 + raw[i];
+    }
+    *pseudoID = hash;
+    return true;
+}
+
 void setup() { 
   //Open serial connection
   Serial.begin(115200);
@@ -48,12 +63,18 @@ void setup() {
   Serial.print("Connecting to ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
+  double timeout = 10.0;
+  while (WiFi.status() != WL_CONNECTED && timeout > 0) {
     delay(500);
+    timeout -=.5;
     Serial.print(".");
   }
-  Serial.print("Connected\nIP Address: ");
-  Serial.println(WiFi.localIP());
+  if (timeout > 0) {
+    Serial.print("Connected\nIP Address: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("Unable to connect to WiFi: connection timed out.");
+  }
   digitalWrite(LED_PIN, LOW);
 
   reader.begin();
@@ -70,7 +91,15 @@ void loop() {
 
   if(rc == ICLASS_EC_OK) {
     digitalWrite(LED_PIN, HIGH);
-    Serial.println("iClass card detected in the field!");
+    uint32_t psID;
+    if (genCardPseudoID(&psID)) {
+      Serial.print("Card psID: ");
+      Serial.println(psID);
+    } else {
+      Serial.println("Failed to generate card id");
+    }
+    
+    
   } else {
     digitalWrite(LED_PIN, LOW);
     Serial.println("No card detected.");
