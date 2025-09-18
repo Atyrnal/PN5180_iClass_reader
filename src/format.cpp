@@ -3,17 +3,6 @@
 
 using namespace std;
 
-
-template<typename ... Args>
-string format(const string& format, Args ... args) {
-  int size_s = snprintf( nullptr, 0, format.c_str(), args ... ) + 1;
-  if( size_s <= 0 ) { throw runtime_error( "Error during formatting." ); }
-  auto size = static_cast<size_t>( size_s );
-  unique_ptr<char[]> buf( new char[ size ] );
-  snprintf( buf.get(), size, format.c_str(), args ... );
-  return string( buf.get(), buf.get() + size - 1 );
-}
-
 std::vector<std::string> split(const std::string& str, const std::string delimeter) {
     vector<string> output = vector<string>();
     if (str.find(delimeter) == string::npos) {
@@ -38,6 +27,15 @@ std::string join(const std::vector<std::string>& vec, const std::string delimete
     string output = vec[0];
     for (int i = 1; i < vec.size(); i++) {
         output += delimeter + vec[i];
+    }
+    return output;
+}
+
+std::string join(const std::string arr[], int size, const std::string delimeter) {
+    if (size < 1) return "";
+    string output = arr[0];
+    for (int i = 1; i < size; i++) {
+        output += delimeter + arr[i];
     }
     return output;
 }
