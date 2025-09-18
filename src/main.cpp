@@ -5,14 +5,13 @@
 
 #include <string>
 
-#include "secrets.hpp"
 #include <ctime>
 #include "format.hpp"
 
 
 //Specify pin numbers
 #define ONBOARD_LED 2
-#define IO_LED 25
+#define IO_LED 15
 
 using namespace std;
 
@@ -70,8 +69,6 @@ void setup() {
   digitalWrite(IO_LED, HIGH);
 
   //RFID Reader
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);
   reader.begin();
   delay(50);
   if (!reader.setupRF()) {
