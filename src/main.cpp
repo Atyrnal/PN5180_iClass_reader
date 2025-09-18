@@ -1,36 +1,23 @@
 
 //ESP32 Stuff
 #include <Arduino.h>
-#include <WiFi.h>
 #include "PN5180iClass.h"
 
-
-//Code stuff
 #include <string>
+
 #include "secrets.hpp"
 #include <ctime>
 #include "format.hpp"
+
 
 //Specify pin numbers
 #define ONBOARD_LED 2
 #define IO_LED 25
 
-#ifndef WIFI_SSID
-#define WIFI_SSID "wifi_ssid"
-#endif
-
-#ifndef WIFI_PASSWORD
-#define WIFI_PASSWORD "wifi_password"
-#endif
-
-#ifndef WIFI_SECURITY
-#define WIFI_SECURITY "WPA2"
-#endif
-
 using namespace std;
 
 // Pins
-const uint8_t PN5180_NSS  = 5;   // CS / NSS
+const uint8_t PN5180_NSS  = 5;   //  NSS
 const uint8_t PN5180_BUSY = 17;  // BUSY
 const uint8_t PN5180_RST  = 16;  // RESET
 
@@ -63,38 +50,30 @@ void on_scan(uint64_t id) {
   Serial.println(format("20B; %020llu; ", id).c_str());
 }
 
+template<typename ... Args>
+string format(const string& format, Args ... args) {
+  int size_s = snprintf( nullptr, 0, format.c_str(), args ... ) + 1;
+  if( size_s <= 0 ) { throw runtime_error( "Error during formatting." ); }
+  auto size = static_cast<size_t>( size_s );
+  unique_ptr<char[]> buf( new char[ size ] );
+  snprintf( buf.get(), size, format.c_str(), args ... );
+  return string( buf.get(), buf.get() + size - 1 );
+}
+
 void setup() { 
   //Open serial connection
   Serial.begin(115200);
   Serial.println("10A; Serial opened");
   pinMode(ONBOARD_LED, OUTPUT);
   pinMode(IO_LED, OUTPUT);
-  digitalWrite(ONBOARD_LED, HIGH);
-
-  //WiFi connections
-  char* ssid = WIFI_SSID;
-  char* password = WIFI_PASSWORD;
-
-  Serial.println(format("30A; connecting to %s", ssid).c_str());
-  WiFi.begin(ssid, password);
-  double timeout = 10.0;
-  while (WiFi.status() != WL_CONNECTED && timeout > 0) {
-    delay(500);
-    timeout -=.5;
-  }
-  if (timeout > 0) {
-    Serial.println(format("30B; connected; %s", WiFi.localIP().toString()).c_str());
-  } else {
-    Serial.println("30C; no connection");
-    //exit(1);
-  }
   digitalWrite(ONBOARD_LED, LOW);
   digitalWrite(IO_LED, HIGH);
 
   //RFID Reader
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, HIGH);
   reader.begin();
   delay(50);
-
   if (!reader.setupRF()) {
     Serial.println("10C; RFID Failed");
     exit(1);
@@ -126,6 +105,7 @@ void loop() {
         time(&last_scan_time);
         on_scan(psID); 
       }
+    
     } else {
       Serial.println("20C; iClass card found; Failed to generate psuedo identifier hash");
     }
@@ -140,6 +120,5 @@ void loop() {
 
   delay(50);
 }
-
 
 
